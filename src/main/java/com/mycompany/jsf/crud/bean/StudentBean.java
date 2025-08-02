@@ -1,35 +1,64 @@
 package com.mycompany.jsf.crud.bean;
 
 import com.mycompany.jsf.crud.entity.Student;
-import javax.faces.bean.ManagedBean;
-import javax.faces.bean.SessionScoped;
-import javax.persistence.EntityManager;
-import javax.persistence.PersistenceContext;
-import javax.transaction.UserTransaction;
-import javax.annotation.Resource;
+import com.mycompany.jsf.crud.service.StudentService;
+
+import javax.annotation.PostConstruct;
+import javax.faces.view.ViewScoped;
+import javax.inject.Inject;
+import javax.inject.Named;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 
-@ManagedBean
-@SessionScoped
+@Named
+@ViewScoped
 public class StudentBean implements Serializable {
-    private Student student = new Student();
+
+    private static final long serialVersionUID = 1L;
+
+    private Student student;
     private List<Student> students;
     private List<String> classOptions;
     private List<String> subjectOptions;
 
-    @PersistenceContext(unitName = "StudentPU")
-    private EntityManager entityManager;
+    @Inject
+    private StudentService studentService;
 
-    @Resource
-    private UserTransaction userTransaction;
-
-    public StudentBean() {
-        System.out.println("Initializing StudentBean");
+    @PostConstruct
+    public void init() {
+        student = new Student();
         classOptions = Arrays.asList("Class 1", "Class 2", "Class 3", "Class 4", "Class 5");
         subjectOptions = Arrays.asList("Math", "Science", "English", "History", "Art");
+        loadStudents();
     }
+
+    public void loadStudents() {
+        students = studentService.getAll();
+    }
+
+    public void save() {
+        if (student != null) {
+            studentService.save(student);
+            student = new Student(); // Reset form
+            loadStudents();          // Refresh list
+        }
+    }
+
+    public void edit(Student selected) {
+        if (selected != null) {
+            this.student = selected;
+        }
+    }
+
+    public void delete(Student selected) {
+        if (selected != null) {
+            studentService.delete(selected);
+            loadStudents();
+        }
+    }
+
+    // Getters and Setters
 
     public Student getStudent() {
         return student;
@@ -40,8 +69,6 @@ public class StudentBean implements Serializable {
     }
 
     public List<Student> getStudents() {
-        students = entityManager.createQuery("SELECT s FROM Student s", Student.class).getResultList();
-        System.out.println("Loading students");
         return students;
     }
 
@@ -51,50 +78,5 @@ public class StudentBean implements Serializable {
 
     public List<String> getSubjectOptions() {
         return subjectOptions;
-    }
-
-    public void save() {
-        System.out.println("Saving student: " + student.getName());
-        try {
-            userTransaction.begin();
-            if (student.getId() == null) {
-                entityManager.persist(student);
-            } else {
-                entityManager.merge(student);
-            }
-            userTransaction.commit();
-            student = new Student();
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                userTransaction.rollback();
-            } catch (Exception re) {
-                re.printStackTrace();
-            }
-        }
-    }
-
-    public void edit(Student student) {
-        System.out.println("Editing student: " + student.getName());
-        this.student = student;
-    }
-
-    public void delete(Student student) {
-        System.out.println("Deleting student: " + student.getName());
-        try {
-            userTransaction.begin();
-            Student managedStudent = entityManager.find(Student.class, student.getId());
-            if (managedStudent != null) {
-                entityManager.remove(managedStudent);
-            }
-            userTransaction.commit();
-        } catch (Exception e) {
-            e.printStackTrace();
-            try {
-                userTransaction.rollback();
-            } catch (Exception re) {
-                re.printStackTrace();
-            }
-        }
     }
 }
